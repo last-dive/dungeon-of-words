@@ -430,7 +430,20 @@
         const {x,y}=state.player;
         if(state.princess.found&&x===state.princess.x&&y===state.princess.y){end(true);return;}
         const m=state.monsters.find(m=>m.x===x&&m.y===y&&m.hp>0);
-        if(m){add('narrator','遇到'+m.name+'！');const d=15+Math.floor(Math.random()*16);m.hp-=d;add('hero','勇者','攻击'+m.name+'！-'+d);if(m.hp<=0)add('narrator','叙事者',m.name+'死亡');else{const md=10+Math.floor(Math.random()*16);state.player.hp-=md;add('narrator','叙事者',m.name+'反击！-'+md);}}
+        if(m){
+            const monsterName = m.name || '怪物';
+            add('narrator','遇到'+monsterName+'！');
+            const d=15+Math.floor(Math.random()*16);
+            m.hp-=d;
+            add('hero','勇者','攻击'+monsterName+'！-'+d);
+            if(m.hp<=0){
+                add('narrator','叙事者',monsterName+'死亡');
+            }else{
+                const md=10+Math.floor(Math.random()*16);
+                state.player.hp-=md;
+                add('narrator','叙事者',monsterName+'反击！-'+md);
+            }
+        }
         const t=state.treasures.find(t=>t.x===x&&t.y===y&&!t.o);
         if(t){t.o=true;const hp=20+Math.floor(Math.random()*31),mp=10+Math.floor(Math.random()*21);state.player.hp=Math.min(CFG.HP,state.player.hp+hp);state.mage.mp=Math.min(CFG.MP,state.mage.mp+mp);add('narrator','发现宝箱！+'+hp+'HP +'+mp+'MP');}
     }
@@ -446,8 +459,11 @@
         if(!input){add('narrator','说点什么吧...');return;}
         add('hero','勇者',input);
         const npcs=[];
+        // Boss: 如果还活着且在相邻格子
         if(state.boss.hp>0&&dist(state.player,state.boss)<=1)npcs.push('boss');
-        if(dist(state.player,{x:0,y:0})<=1)npcs.push('mage');
+        // Merlin: 永远是玩家的伙伴，随时可以对话
+        npcs.push('mage');
+        // 公主: 如果找到且在同一格子
         if(state.princess.found&&state.player.x===state.princess.x&&state.player.y===state.princess.y)npcs.push('princess');
         if(npcs.length===0){add('narrator','附近没有人可以对话...');return;}
         const npc=npcs[Math.floor(Math.random()*npcs.length)];
