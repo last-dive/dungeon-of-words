@@ -266,13 +266,13 @@
         if (isAnthropic) {
             headers['x-api-key'] = apiKey;
             headers['anthropic-version'] = '2023-06-01';
-            body = { model: model, max_tokens: 50, messages: [{ role: 'user', content: prompt }] };
+            body = { model: model, max_tokens: 200, messages: [{ role: 'user', content: prompt }] };
         } else if (provider === 'glm') {
             headers['Authorization'] = apiKey;
-            body = { model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 50 };
+            body = { model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 200 };
         } else {
             headers['Authorization'] = 'Bearer ' + apiKey;
-            body = { model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 50 };
+            body = { model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 200 };
         }
         
         const r = await fetch(apiUrl, { method: 'POST', headers, body: JSON.stringify(body) });
@@ -284,10 +284,29 @@
         
         const d = await r.json();
         
+        // 解析不同 API 的响应格式
         if (isAnthropic) {
-            return d.content?.[0]?.text;
+            return d.content?.[0]?.text || '';
         } else {
-            return d.choices?.[0]?.message?.content || JSON.stringify(d);
+            // OpenAI / Moonshot / DeepSeek / Qwen / GLM 格式
+            let content = d.choices?.[0]?.message?.content || '';
+            
+            // 如果 content 为空但有 reasoning_content（Moonshot 等），尝试使用
+            if (!content && d.choices?.[0]?.message?.reasoning_content) {
+                content = d.choices[0].message.reasoning_content;
+            }
+            
+            // 如果还是空，返回友好错误
+            if (!content) {
+                // 返回简要错误信息而不是整个 JSON
+                const finishReason = d.choices?.[0]?.finish_reason;
+                if (finishReason === 'length') {
+                    return '（回复被截断，请重试）';
+                }
+                return '（AI 未生成有效回复）';
+            }
+            
+            return content;
         }
     }
     
