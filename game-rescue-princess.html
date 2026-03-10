@@ -291,12 +291,8 @@
             // OpenAI / Moonshot / DeepSeek / Qwen / GLM 格式
             let content = d.choices?.[0]?.message?.content || '';
             
-            // 如果 content 为空但有 reasoning_content（Moonshot 等），尝试使用
-            if (!content && d.choices?.[0]?.message?.reasoning_content) {
-                content = d.choices[0].message.reasoning_content;
-            }
+            // 注意：不使用 reasoning_content（AI的思考过程），只使用正式回复
             
-            // 如果还是空，返回友好错误
             if (!content) {
                 // 返回简要错误信息而不是整个 JSON
                 const finishReason = d.choices?.[0]?.finish_reason;
