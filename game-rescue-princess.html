@@ -269,10 +269,10 @@
             body = { model: model, max_tokens: 200, messages: [{ role: 'user', content: prompt }] };
         } else if (provider === 'glm') {
             headers['Authorization'] = apiKey;
-            body = { model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 200 };
+            body = { model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 500 };
         } else {
             headers['Authorization'] = 'Bearer ' + apiKey;
-            body = { model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 200 };
+            body = { model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 500 };
         }
         
         const r = await fetch(apiUrl, { method: 'POST', headers, body: JSON.stringify(body) });
@@ -291,7 +291,12 @@
             // OpenAI / Moonshot / DeepSeek / Qwen / GLM 格式
             let content = d.choices?.[0]?.message?.content || '';
             
-            // 注意：不使用 reasoning_content（AI的思考过程），只使用正式回复
+            // 如果正式回复为空但思考过程有内容（且不是截断），可以使用思考过程作为回复
+            // 这是因为有些模型（如 Moonshot）会把回复放在 reasoning_content
+            const finishReason = d.choices?.[0]?.finish_reason;
+            if (!content && d.choices?.[0]?.message?.reasoning_content && finishReason !== 'length') {
+                content = '[思考中...] ' + d.choices[0].message.reasoning_content;
+            }
             
             if (!content) {
                 // 返回简要错误信息而不是整个 JSON
