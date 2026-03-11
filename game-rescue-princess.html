@@ -32,32 +32,38 @@
         .test-result.error { background: rgba(255,0,0,0.15); border: 1px solid rgba(255,0,0,0.3); color: #FFB6C1; }
         
         #game-screen { display: none; }
-        .game-header { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 12px; margin-bottom: 15px; }
-        .game-title { font-size: 20px; color: #ffd700; }
-        .game-stats { display: flex; gap: 20px; }
-        .stat { text-align: center; }
-        .stat-value { font-size: 20px; font-weight: bold; color: #ffd700; }
-        .stat-label { font-size: 11px; color: #888; }
         
-        .map-container { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; margin-bottom: 15px; }
-        .map-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 10px; }
-        .map-cell { aspect-ratio: 1; background: rgba(255,255,255,0.1); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        /* 左右布局 */
+        .game-layout { display: flex; gap: 20px; height: calc(100vh - 40px); }
+        .game-map-section { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+        .game-sidebar { width: 320px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+        
+        .game-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; background: rgba(0,0,0,0.3); border-radius: 12px; }
+        .game-title { font-size: 18px; color: #ffd700; }
+        .game-stats { display: flex; gap: 15px; }
+        .stat { text-align: center; }
+        .stat-value { font-size: 18px; font-weight: bold; color: #ffd700; }
+        .stat-label { font-size: 10px; color: #888; }
+        
+        .map-container { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; flex: 1; overflow: auto; }
+        .map-grid { display: grid; gap: 4px; }
+        .map-cell { aspect-ratio: 1; background: rgba(255,255,255,0.1); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 20px; min-width: 40px; min-height: 40px; }
         .map-cell.player { background: #ffd700; }
         .map-cell.boss { background: #ff4444; }
         .map-cell.princess { background: #ff69b4; }
         .map-cell.monster { background: #8b4513; }
         .map-cell.treasure { background: #daa520; }
-        .map-legend { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; font-size: 11px; color: #888; }
+        .map-legend { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; font-size: 10px; color: #888; margin-top: 10px; }
         
-        .status-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .status-card { background: rgba(0,0,0,0.3); border-radius: 10px; padding: 12px; }
-        .status-card h3 { font-size: 12px; color: #888; margin-bottom: 5px; }
-        .status-card .value { font-size: 16px; font-weight: bold; }
+        .status-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .status-card { background: rgba(0,0,0,0.3); border-radius: 8px; padding: 10px; }
+        .status-card h3 { font-size: 11px; color: #888; margin-bottom: 3px; }
+        .status-card .value { font-size: 13px; font-weight: bold; }
         .hero .value { color: #ffd700; }
         .mage .value { color: #9370db; }
         .boss .value { color: #ff4444; }
         
-        .dialogue-container { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; margin-bottom: 15px; max-height: 280px; overflow-y: auto; }
+        .dialogue-container { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 12px; flex: 1; min-height: 150px; overflow-y: auto; }
         .dialogue { margin-bottom: 10px; padding: 10px; border-radius: 6px; animation: fadeIn 0.3s; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .narrator { background: rgba(255,255,255,0.1); border-left: 3px solid #888; }
@@ -141,36 +147,43 @@
     
     <div id="game-screen">
         <div class="container">
-            <div class="game-header">
-                <div class="game-title">🏰 Dungeon of Words</div>
-                <div class="game-stats">
-                    <div class="stat"><div class="stat-value" id="turn">0</div><div class="stat-label">回合</div></div>
-                    <div class="stat"><div class="stat-value" id="steps">50</div><div class="stat-label">剩余</div></div>
+            <div class="game-layout">
+                <!-- 左侧：地图区域 -->
+                <div class="game-map-section">
+                    <div class="game-header">
+                        <div class="game-title">🏰 Dungeon of Words</div>
+                        <div class="game-stats">
+                            <div class="stat"><div class="stat-value" id="turn">0</div><div class="stat-label">回合</div></div>
+                            <div class="stat"><div class="stat-value" id="steps">200</div><div class="stat-label">剩余</div></div>
+                        </div>
+                    </div>
+                    <div class="map-container">
+                        <div class="map-grid" id="map"></div>
+                        <div class="map-legend">
+                            <span><img src="https://raw.githubusercontent.com/last-dive/dungeon-of-words/main/hero.png" style="width:16px;height:16px;vertical-align:middle;"> 勇者</span>
+                            <span><img src="https://raw.githubusercontent.com/last-dive/dungeon-of-words/main/boss.png" style="width:16px;height:16px;vertical-align:middle;"> Boss</span>
+                            <span><img src="https://raw.githubusercontent.com/last-dive/dungeon-of-words/main/monster.png" style="width:16px;height:16px;vertical-align:middle;"> 怪物</span>
+                            <span><img src="https://raw.githubusercontent.com/last-dive/dungeon-of-words/main/treasure.png" style="width:16px;height:16px;vertical-align:middle;"> 宝箱</span>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="map-container">
-                <div class="map-grid" id="map"></div>
-                <div class="map-legend">
-                    <span><img src="https://raw.githubusercontent.com/last-dive/dungeon-of-words/main/hero.png" style="width:20px;height:20px;vertical-align:middle;"> 勇者</span>
-                    <span><img src="https://raw.githubusercontent.com/last-dive/dungeon-of-words/main/boss.png" style="width:20px;height:20px;vertical-align:middle;"> Boss</span>
-                    <span><img src="https://raw.githubusercontent.com/last-dive/dungeon-of-words/main/monster.png" style="width:20px;height:20px;vertical-align:middle;"> 怪物</span>
-                    <span><img src="https://raw.githubusercontent.com/last-dive/dungeon-of-words/main/treasure.png" style="width:20px;height:20px;vertical-align:middle;"> 宝箱</span>
-                </div>
-            </div>
-            <div class="status-panel">
-                <div class="status-card hero"><h3>👤 勇者</h3><div class="value" id="hero-hp">100/100</div></div>
-                <div class="status-card mage"><h3>🧙 法师</h3><div class="value" id="mage-mp">50/50</div></div>
-                <div class="status-card boss"><h3>👹 Boss</h3><div class="value" id="boss-hp">200/200</div></div>
-                <div class="status-card"><h3>👸 公主</h3><div class="value" id="princess-status">被囚禁</div></div>
-            </div>
-            <div class="dialogue-container" id="dialogue"></div>
-            <div class="input-container">
-                <textarea id="player-input" placeholder="输入你的行动或对话... (如: 向北走, 攻击, 和法师对话)"></textarea>
-                <div class="input-actions">
-                    <button class="btn-action btn-attack" onclick="playerAction('attack')">⚔️攻击</button>
-                    <button class="btn-action btn-magic" onclick="playerAction('magic')">✨魔法</button>
-                    <button class="btn-action btn-move" onclick="playerAction('move')">👣移动</button>
-                    <button class="btn-action btn-custom" onclick="playerAction('talk')">💬对话</button>
+                
+                <!-- 右侧：状态和操作面板 -->
+                <div class="game-sidebar">
+                    <div class="status-panel">
+                        <div class="status-card hero"><h3>👤 勇者</h3><div class="value" id="hero-hp">100/100</div></div>
+                        <div class="status-card mage"><h3>🧙 法师</h3><div class="value" id="mage-mp">50/50</div></div>
+                        <div class="status-card boss"><h3>👹 Boss</h3><div class="value" id="boss-hp">300/300</div></div>
+                        <div class="status-card"><h3>👸 公主</h3><div class="value" id="princess-status">被囚禁</div></div>
+                    </div>
+                    <div class="dialogue-container" id="dialogue"></div>
+                    <div class="input-container">
+                        <textarea id="player-input" placeholder="输入你的行动或对话... (如: 向北走, 攻击, 和法师对话)"></textarea>
+                        <div class="input-actions">
+                            <button class="btn-action btn-attack" onclick="playerAction('attack')">⚔️攻击</button>
+                            <button class="btn-action btn-magic" onclick="playerAction('magic')">✨魔法</button>
+                            <button class="btn-action btn-move" onclick="playerAction('move')">👣移动</button>
+                            <button class="btn-action btn-custom" onclick="playerAction('talk')">💬对话</button>
                 </div>
             </div>
         </div>
@@ -427,7 +440,9 @@
     }
     
     function updateUI(){
-        const map=document.getElementById('map');map.innerHTML='';
+        const map=document.getElementById('map');
+        map.style.gridTemplateColumns = `repeat(${CFG.SIZE}, 1fr)`;
+        map.innerHTML='';
         for(let y=0;y<CFG.SIZE;y++){for(let x=0;x<CFG.SIZE;x++){const c=document.createElement('div');c.className='map-cell';let e='';
             if(state.player.x===x&&state.player.y===y){c.classList.add('player');c.innerHTML='<img src="'+ASSETS.hero+'" style="width:80%;height:80%;object-fit:contain;">';}
             else if(state.princess.found&&state.princess.x===x&&state.princess.y===y){c.classList.add('princess');c.innerHTML='<img src="'+ASSETS.princess+'" style="width:80%;height:80%;object-fit:contain;">';}
