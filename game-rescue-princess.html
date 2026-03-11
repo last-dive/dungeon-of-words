@@ -45,7 +45,7 @@
         .stat-value { font-size: 14px; font-weight: bold; color: #ffd700; }
         .stat-label { font-size: 8px; color: #888; }
         
-        .map-container { background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px; flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center; }
+        .map-container { background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px; flex: 1; overflow: auto; }
         .map-grid { display: grid; gap: 2px; }
         .map-cell { aspect-ratio: 1; background: rgba(255,255,255,0.1); border-radius: 2px; display: flex; align-items: center; justify-content: center; }
         .map-cell img { width: 90%; height: 90%; object-fit: contain; }
@@ -466,12 +466,15 @@
     
     function updateUI(){
         const map = document.getElementById('map');
-        map.style.gridTemplateColumns = `repeat(${CFG.SIZE}, 1fr)`;
         
-        // 根据窗口高度动态计算格子大小，填满左侧区域
+        // 根据容器宽高中较小的那个来计算格子大小，确保填满
         const container = document.querySelector('.map-container');
-        const containerHeight = container ? container.clientHeight - 30 : 400;
-        const cellSize = Math.floor(containerHeight / CFG.SIZE);
+        const containerHeight = container ? container.clientHeight - 20 : 400;
+        const containerWidth = container ? container.clientWidth - 20 : 600;
+        // 取宽高较小值，确保地图是正方形且填满
+        const cellSize = Math.floor(Math.min(containerHeight, containerWidth) / CFG.SIZE);
+        
+        map.style.gridTemplateColumns = `repeat(${CFG.SIZE}, ${cellSize}px)`;
         
         for(let y=0;y<CFG.SIZE;y++){for(let x=0;x<CFG.SIZE;x++){const c=document.createElement('div');c.className='map-cell';c.style.width=cellSize+'px';c.style.height=cellSize+'px';
             if(state.player.x===x&&state.player.y===y){c.classList.add('player');c.innerHTML='<img src="'+ASSETS.hero+'" style="width:80%;height:80%;object-fit:contain;">';}
