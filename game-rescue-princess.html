@@ -207,7 +207,16 @@
     };
     
     // ==================== 游戏配置 ====================
-    const CFG = { SIZE: 5, STEPS: 50, HP: 100, MP: 50, BOSS: 200, BASE_EXP: 30, LEVEL_EXP: 50 };
+    const CFG = { SIZE: 10, STEPS: 200, HP: 100, MP: 50, BOSS: 300, BASE_EXP: 30, LEVEL_EXP: 50 };
+    const MONSTER_TYPES = [
+        {name: '哥布林', icon: 'monster'},
+        {name: '史莱姆', icon: 'slime'},
+        {name: '骷髅兵', icon: 'skeleton'},
+        {name: '蝙蝠', icon: 'bat'},
+        {name: '狼人', icon: 'werewolf'},
+        {name: '食人魔', icon: 'orc'},
+        {name: '牛头怪', icon: 'minotaur'}
+    ];
     let state = { provider: 'openai', apiUrl: '', apiKey: '', model: '', turn: 0, steps: CFG.STEPS, player: {x:0,y:0,hp:CFG.HP,level:1,exp:0,maxHp:CFG.HP}, mage: {mp:CFG.MP}, boss: {x:4,y:4,hp:CFG.BOSS}, princess: {x:0,y:0,found:false}, monsters: [], treasures: [], loading: false, over: false };
 
     // 升级系统
@@ -364,11 +373,29 @@
         state.player = {x:0,y:0,hp:CFG.HP,level:1,exp:0,maxHp:CFG.HP};
         state.mage = {mp:CFG.MP};
         state.monsters = []; state.treasures = [];
-        do { state.boss = {x:2+Math.floor(Math.random()*3),y:2+Math.floor(Math.random()*3),hp:CFG.BOSS}; } while(dist(state.player,state.boss)<3);
-        do { state.princess = {x:Math.max(0,Math.min(CFG.SIZE-1,state.boss.x+(Math.random()>.5?1:-1))),y:Math.max(0,Math.min(CFG.SIZE-1,state.boss.y+(Math.random()>.5?1:-1))),found:false}; } while(dist(state.player,state.princess)<2);
-        const MONSTER_NAMES = ['哥布林', '骷髅兵', '史莱姆', '蝙蝠', '狼人', '食人魔', '亡灵法师', '牛头怪'];
-        for(let i=0;i<5;i++){let x,y;do{x=Math.floor(Math.random()*CFG.SIZE);y=Math.floor(Math.random()*CFG.SIZE);}while((x==state.player.x&&y==state.player.y)||at(x,y,state.boss)||monAt(x,y));state.monsters.push({x,y,hp:50,name:MONSTER_NAMES[i%MONSTER_NAMES.length]});}
-        for(let i=0;i<4;i++){let x,y;do{x=Math.floor(Math.random()*CFG.SIZE);y=Math.floor(Math.random()*CFG.SIZE);}while((x==state.player.x&&y==state.player.y)||at(x,y,state.boss)||monAt(x,y)||treAt(x,y));state.treasures.push({x,y,o:false});}
+        // Boss 在地图右下角区域
+        do { state.boss = {x:7+Math.floor(Math.random()*3),y:7+Math.floor(Math.random()*3),hp:CFG.BOSS}; } while(dist(state.player,state.boss)<5);
+        // 公主在 Boss 附近
+        do { state.princess = {x:Math.max(0,Math.min(CFG.SIZE-1,state.boss.x+(Math.random()>.5?1:-1))),y:Math.max(0,Math.min(CFG.SIZE-1,state.boss.y+(Math.random()>.5?1:-1))),found:false}; } while(dist(state.player,state.princess)<3);
+        // 生成 15 个怪物（不同类型）
+        for(let i=0;i<15;i++){
+            let x,y;
+            const type = MONSTER_TYPES[i % MONSTER_TYPES.length];
+            do {
+                x=Math.floor(Math.random()*CFG.SIZE);
+                y=Math.floor(Math.random()*CFG.SIZE);
+            } while((x===state.player.x&&y===state.player.y) || at(x,y,state.boss) || monAt(x,y));
+            state.monsters.push({x,y,hp:50,name:type.name,icon:type.icon});
+        }
+        // 生成 12 个宝箱
+        for(let i=0;i<12;i++){
+            let x,y;
+            do {
+                x=Math.floor(Math.random()*CFG.SIZE);
+                y=Math.floor(Math.random()*CFG.SIZE);
+            } while((x===state.player.x&&y===state.player.y) || at(x,y,state.boss) || monAt(x,y) || treAt(x,y));
+            state.treasures.push({x,y,o:false});
+        }
     }
     function dist(a,b){return Math.abs(a.x-b.x)+Math.abs(a.y-b.y);}
     function at(x,y,o){return o&&o.x===x&&o.y===y;}
@@ -381,8 +408,19 @@
         boss: 'https://raw.githubusercontent.com/last-dive/dungeon-of-words/main/boss.png',
         princess: 'https://raw.githubusercontent.com/last-dive/dungeon-of-words/main/princess.png',
         monster: 'https://raw.githubusercontent.com/last-dive/dungeon-of-words/main/monster.png',
-        treasure: 'https://raw.githubusercontent.com/last-dive/dungeon-of-words/main/treasure.png'
+        treasure: 'https://raw.githubusercontent.com/last-dive/dungeon-of-words/main/treasure.png',
+        slime: 'https://raw.githubusercontent.com/last-dive/dungeon-of-words/main/slime.png',
+        skeleton: 'https://raw.githubusercontent.com/last-dive/dungeon-of-words/main/skeleton.png',
+        orc: 'https://raw.githubusercontent.com/last-dive/dungeon-of-words/main/orc.png',
+        minotaur: 'https://raw.githubusercontent.com/last-dive/dungeon-of-words/main/minotaur.png',
+        bat: 'https://raw.githubusercontent.com/last-dive/dungeon-of-words/main/bat.png',
+        werewolf: 'https://raw.githubusercontent.com/last-dive/dungeon-of-words/main/werewolf.png'
     };
+    
+    function getMonsterAsset(monster) {
+        const type = MONSTER_TYPES.find(t => t.name === monster.name);
+        return ASSETS[type ? type.icon : 'monster'];
+    }
     
     function getAssetUrl(type) {
         return ASSETS[type] || '';
@@ -394,7 +432,11 @@
             if(state.player.x===x&&state.player.y===y){c.classList.add('player');c.innerHTML='<img src="'+ASSETS.hero+'" style="width:80%;height:80%;object-fit:contain;">';}
             else if(state.princess.found&&state.princess.x===x&&state.princess.y===y){c.classList.add('princess');c.innerHTML='<img src="'+ASSETS.princess+'" style="width:80%;height:80%;object-fit:contain;">';}
             else if(at(x,y,state.boss)&&state.boss.hp>0){c.classList.add('boss');c.innerHTML='<img src="'+ASSETS.boss+'" style="width:80%;height:80%;object-fit:contain;">';}
-            else if(monAt(x,y)){c.classList.add('monster');c.innerHTML='<img src="'+ASSETS.monster+'" style="width:80%;height:80%;object-fit:contain;">';}
+            else if(monAt(x,y)){
+                const m = state.monsters.find(m => m.x === x && m.y === y && m.hp > 0);
+                const icon = m ? getMonsterAsset(m) : ASSETS.monster;
+                c.classList.add('monster');c.innerHTML='<img src="'+icon+'" style="width:80%;height:80%;object-fit:contain;">';
+            }
             else if(treAt(x,y)){c.classList.add('treasure');c.innerHTML='<img src="'+ASSETS.treasure+'" style="width:80%;height:80%;object-fit:contain;">';}
             map.appendChild(c);}}
         document.getElementById('turn').textContent=state.turn;
