@@ -34,38 +34,39 @@
         #game-screen { display: none; }
         
         /* 左右布局 - 地图为主 */
-        .game-layout { display: flex; gap: 15px; height: calc(100vh - 40px); }
+        .game-layout { display: flex; gap: 12px; height: calc(100vh - 40px); }
         .game-map-section { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-        .game-sidebar { width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; }
+        .game-sidebar { width: 260px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
         
-        .game-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(0,0,0,0.3); border-radius: 8px; }
-        .game-title { font-size: 16px; color: #ffd700; }
-        .game-stats { display: flex; gap: 12px; }
+        .game-header { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: rgba(0,0,0,0.3); border-radius: 6px; }
+        .game-title { font-size: 14px; color: #ffd700; }
+        .game-stats { display: flex; gap: 10px; }
         .stat { text-align: center; }
-        .stat-value { font-size: 16px; font-weight: bold; color: #ffd700; }
-        .stat-label { font-size: 9px; color: #888; }
+        .stat-value { font-size: 14px; font-weight: bold; color: #ffd700; }
+        .stat-label { font-size: 8px; color: #888; }
         
-        .map-container { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 12px; flex: 1; overflow: auto; }
-        .map-grid { display: grid; gap: 3px; }
-        .map-cell { aspect-ratio: 1; background: rgba(255,255,255,0.1); border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 18px; min-width: 45px; min-height: 45px; }
+        .map-container { background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px; flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center; }
+        .map-grid { display: grid; gap: 2px; }
+        .map-cell { aspect-ratio: 1; background: rgba(255,255,255,0.1); border-radius: 2px; display: flex; align-items: center; justify-content: center; }
+        .map-cell img { width: 90%; height: 90%; object-fit: contain; }
         .map-cell.player { background: #ffd700; }
         .map-cell.boss { background: #ff4444; }
         .map-cell.princess { background: #ff69b4; }
         .map-cell.monster { background: #8b4513; }
         .map-cell.treasure { background: #daa520; }
-        .map-legend { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; font-size: 9px; color: #888; margin-top: 8px; }
+        .map-legend { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; font-size: 8px; color: #888; margin-top: 6px; }
         
-        .status-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-        .status-card { background: rgba(0,0,0,0.3); border-radius: 6px; padding: 8px; }
-        .status-card h3 { font-size: 10px; color: #888; margin-bottom: 2px; }
-        .status-card .value { font-size: 11px; font-weight: bold; }
+        .status-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+        .status-card { background: rgba(0,0,0,0.3); border-radius: 5px; padding: 6px; }
+        .status-card h3 { font-size: 9px; color: #888; margin-bottom: 2px; }
+        .status-card .value { font-size: 10px; font-weight: bold; }
         .hero .value { color: #ffd700; }
         .mage .value { color: #9370db; }
         .boss .value { color: #ff4444; }
         
-        .dialogue-container { background: rgba(0,0,0,0.3); border-radius: 8px; padding: 8px; flex: 1; min-height: 120px; overflow-y: auto; font-size: 12px; }
-        .dialogue { margin-bottom: 6px; padding: 6px; border-radius: 4px; animation: fadeIn 0.3s; font-size: 12px; }
-        .dialogue .speaker { font-size: 10px; }
+        .dialogue-container { background: rgba(0,0,0,0.3); border-radius: 6px; padding: 6px; flex: 1; min-height: 100px; overflow-y: auto; font-size: 11px; }
+        .dialogue { margin-bottom: 5px; padding: 5px; border-radius: 3px; animation: fadeIn 0.3s; font-size: 11px; }
+        .dialogue .speaker { font-size: 9px; }
         .dialogue { margin-bottom: 10px; padding: 10px; border-radius: 6px; animation: fadeIn 0.3s; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .narrator { background: rgba(255,255,255,0.1); border-left: 3px solid #888; }
@@ -442,10 +443,18 @@
     }
     
     function updateUI(){
-        const map=document.getElementById('map');
+        const map = document.getElementById('map');
         map.style.gridTemplateColumns = `repeat(${CFG.SIZE}, 1fr)`;
+        
+        // 根据窗口高度动态计算格子大小
+        const container = document.querySelector('.map-container');
+        const containerHeight = container ? container.clientHeight - 40 : 400;
+        const cellSize = Math.floor(Math.min(containerHeight / CFG.SIZE, 80)); // 最大80px
+        map.style.width = '100%';
+        map.style.maxWidth = (cellSize * CFG.SIZE) + 'px';
+        
         map.innerHTML='';
-        for(let y=0;y<CFG.SIZE;y++){for(let x=0;x<CFG.SIZE;x++){const c=document.createElement('div');c.className='map-cell';let e='';
+        for(let y=0;y<CFG.SIZE;y++){for(let x=0;x<CFG.SIZE;x++){const c=document.createElement('div');c.className='map-cell';c.style.width=cellSize+'px';c.style.height=cellSize+'px';let e='';
             if(state.player.x===x&&state.player.y===y){c.classList.add('player');c.innerHTML='<img src="'+ASSETS.hero+'" style="width:80%;height:80%;object-fit:contain;">';}
             else if(state.princess.found&&state.princess.x===x&&state.princess.y===y){c.classList.add('princess');c.innerHTML='<img src="'+ASSETS.princess+'" style="width:80%;height:80%;object-fit:contain;">';}
             else if(at(x,y,state.boss)&&state.boss.hp>0){c.classList.add('boss');c.innerHTML='<img src="'+ASSETS.boss+'" style="width:80%;height:80%;object-fit:contain;">';}
