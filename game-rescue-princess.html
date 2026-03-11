@@ -34,9 +34,9 @@
         #game-screen { display: none; }
         
         /* 左右布局 - 地图为主 */
-        .game-layout { display: flex; gap: 12px; height: calc(100vh - 40px); }
+        .game-layout { display: flex; gap: 10px; height: calc(100vh - 40px); padding: 10px; }
         .game-map-section { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-        .game-sidebar { width: 260px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
+        .game-sidebar { width: 240px; flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; }
         
         .game-header { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: rgba(0,0,0,0.3); border-radius: 6px; }
         .game-title { font-size: 14px; color: #ffd700; }
@@ -316,6 +316,9 @@
         let headers = { 'Content-Type': 'application/json' };
         let body;
         
+        // 关闭推理/思考模式以提高响应速度
+        const noThinking = { thinking: { type: "reasoning", reasoning: { effort: "none" } } };
+        
         if (isAnthropic) {
             headers['x-api-key'] = apiKey;
             headers['anthropic-version'] = '2023-06-01';
@@ -323,9 +326,19 @@
         } else if (provider === 'glm') {
             headers['Authorization'] = apiKey;
             body = { model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 500 };
-        } else {
+        } else if (provider === 'moonshot') {
+            headers['Authorization'] = 'Bearer ' + apiKey;
+            body = { model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 500, ...noThinking };
+        } else if (provider === 'deepseek') {
             headers['Authorization'] = 'Bearer ' + apiKey;
             body = { model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 500 };
+        } else if (provider === 'qwen') {
+            headers['Authorization'] = 'Bearer ' + apiKey;
+            body = { model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 500, reasoning: { effort: "none" } };
+        } else {
+            // OpenAI and custom
+            headers['Authorization'] = 'Bearer ' + apiKey;
+            body = { model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 500, ...noThinking };
         }
         
         const r = await fetch(apiUrl, { method: 'POST', headers, body: JSON.stringify(body) });
@@ -446,15 +459,12 @@
         const map = document.getElementById('map');
         map.style.gridTemplateColumns = `repeat(${CFG.SIZE}, 1fr)`;
         
-        // 根据窗口高度动态计算格子大小
+        // 根据窗口高度动态计算格子大小，填满左侧区域
         const container = document.querySelector('.map-container');
-        const containerHeight = container ? container.clientHeight - 40 : 400;
-        const cellSize = Math.floor(Math.min(containerHeight / CFG.SIZE, 80)); // 最大80px
-        map.style.width = '100%';
-        map.style.maxWidth = (cellSize * CFG.SIZE) + 'px';
+        const containerHeight = container ? container.clientHeight - 30 : 400;
+        const cellSize = Math.floor(containerHeight / CFG.SIZE);
         
-        map.innerHTML='';
-        for(let y=0;y<CFG.SIZE;y++){for(let x=0;x<CFG.SIZE;x++){const c=document.createElement('div');c.className='map-cell';c.style.width=cellSize+'px';c.style.height=cellSize+'px';let e='';
+        for(let y=0;y<CFG.SIZE;y++){for(let x=0;x<CFG.SIZE;x++){const c=document.createElement('div');c.className='map-cell';c.style.width=cellSize+'px';c.style.height=cellSize+'px';
             if(state.player.x===x&&state.player.y===y){c.classList.add('player');c.innerHTML='<img src="'+ASSETS.hero+'" style="width:80%;height:80%;object-fit:contain;">';}
             else if(state.princess.found&&state.princess.x===x&&state.princess.y===y){c.classList.add('princess');c.innerHTML='<img src="'+ASSETS.princess+'" style="width:80%;height:80%;object-fit:contain;">';}
             else if(at(x,y,state.boss)&&state.boss.hp>0){c.classList.add('boss');c.innerHTML='<img src="'+ASSETS.boss+'" style="width:80%;height:80%;object-fit:contain;">';}
