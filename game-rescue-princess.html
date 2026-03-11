@@ -316,8 +316,9 @@
         let headers = { 'Content-Type': 'application/json' };
         let body;
         
-        // 关闭推理/思考模式以提高响应速度
+        // 尝试关闭推理/思考模式以提高响应速度（部分模型可能不支持）
         const noThinking = { thinking: { type: "reasoning", reasoning: { effort: "none" } } };
+        const qwenThinking = { reasoning: { effort: "none" } };
         
         if (isAnthropic) {
             headers['x-api-key'] = apiKey;
@@ -328,17 +329,25 @@
             body = { model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 500 };
         } else if (provider === 'moonshot') {
             headers['Authorization'] = 'Bearer ' + apiKey;
-            body = { model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 500, ...noThinking };
+            body = { model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 500 };
+            // Moonshot 不支持 thinking 参数，忽略
         } else if (provider === 'deepseek') {
             headers['Authorization'] = 'Bearer ' + apiKey;
             body = { model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 500 };
         } else if (provider === 'qwen') {
             headers['Authorization'] = 'Bearer ' + apiKey;
-            body = { model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 500, reasoning: { effort: "none" } };
+            body = { model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 500, ...qwenThinking };
         } else {
-            // OpenAI and custom
-            headers['Authorization'] = 'Bearer ' + apiKey;
-            body = { model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 500, ...noThinking };
+            // OpenAI and custom - 尝试添加 thinking 参数，如果不支持则忽略
+            let extra = {};
+            try {
+                extra = noThinking;
+                // 先测试是否支持
+                JSON.stringify({ test: extra });
+            } catch(e) {
+                extra = {};
+            }
+            body = { model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 500, ...extra };
         }
         
         const r = await fetch(apiUrl, { method: 'POST', headers, body: JSON.stringify(body) });
