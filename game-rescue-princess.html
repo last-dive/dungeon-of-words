@@ -207,8 +207,30 @@
     };
     
     // ==================== 游戏配置 ====================
-    const CFG = { SIZE: 5, STEPS: 50, HP: 100, MP: 50, BOSS: 200 };
-    let state = { provider: 'openai', apiUrl: '', apiKey: '', model: '', turn: 0, steps: CFG.STEPS, player: {x:0,y:0,hp:CFG.HP}, mage: {mp:CFG.MP}, boss: {x:4,y:4,hp:CFG.BOSS}, princess: {x:0,y:0,found:false}, monsters: [], treasures: [], loading: false, over: false };
+    const CFG = { SIZE: 5, STEPS: 50, HP: 100, MP: 50, BOSS: 200, BASE_EXP: 30, LEVEL_EXP: 50 };
+    let state = { provider: 'openai', apiUrl: '', apiKey: '', model: '', turn: 0, steps: CFG.STEPS, player: {x:0,y:0,hp:CFG.HP,level:1,exp:0,maxHp:CFG.HP}, mage: {mp:CFG.MP}, boss: {x:4,y:4,hp:CFG.BOSS}, princess: {x:0,y:0,found:false}, monsters: [], treasures: [], loading: false, over: false };
+
+    // 升级系统
+    function getExpNeeded(level) {
+        return CFG.LEVEL_EXP + (level - 1) * 30;
+    }
+    
+    function addExp(amount) {
+        if (state.player.level >= 10) return; // 满级不再升级
+        state.player.exp += amount;
+        const needed = getExpNeeded(state.player.level);
+        if (state.player.exp >= needed) {
+            state.player.exp -= needed;
+            state.player.level++;
+            state.player.maxHp += 20;
+            state.player.hp = state.player.maxHp; // 升级回满血
+            add('narrator', '🎉', `升级了！现在是 ${state.player.level} 级！攻击力提升，最大HP变为 ${state.player.maxHp}！`);
+        }
+    }
+    
+    function getPlayerDamage() {
+        return 15 + (state.player.level - 1) * 5 + Math.floor(Math.random() * 16);
+    }
     
     // ==================== 初始化 ====================
     function onProviderChange() {
@@ -339,7 +361,7 @@
     
     function initMap() {
         state.turn = 0; state.steps = CFG.STEPS;
-        state.player = {x:0,y:0,hp:CFG.HP};
+        state.player = {x:0,y:0,hp:CFG.HP,level:1,exp:0,maxHp:CFG.HP};
         state.mage = {mp:CFG.MP};
         state.monsters = []; state.treasures = [];
         do { state.boss = {x:2+Math.floor(Math.random()*3),y:2+Math.floor(Math.random()*3),hp:CFG.BOSS}; } while(dist(state.player,state.boss)<3);
@@ -377,7 +399,8 @@
             map.appendChild(c);}}
         document.getElementById('turn').textContent=state.turn;
         document.getElementById('steps').textContent=state.steps;
-        document.getElementById('hero-hp').textContent=state.player.hp+'/'+CFG.HP;
+        const expNeeded = getExpNeeded(state.player.level);
+        document.getElementById('hero-hp').textContent=state.player.hp+'/'+state.player.maxHp + ' ⭐'+state.player.level + ' 📈'+state.player.exp+'/'+expNeeded;
         document.getElementById('mage-mp').textContent=state.mage.mp+'/'+CFG.MP;
         document.getElementById('boss-hp').textContent=state.boss.hp+'/'+CFG.BOSS;
         document.getElementById('princess-status').textContent=state.princess.found?'已发现！':'被囚禁';
@@ -415,15 +438,27 @@
     
     async function doAttack(){
         const {x,y}=state.player;
+        const damage = getPlayerDamage();
         if(at(x,y,state.boss)&&state.boss.hp>0){
-            const d=15+Math.floor(Math.random()*16);state.boss.hp-=d;
-            add('hero','勇者','攻击Boss！造成'+d+'伤害！');
+            state.boss.hp-=damage;
+            add('hero','勇者','攻击Boss！造成'+damage+'伤害！（等级'+state.player.level+'）');
             if(state.boss.hp<=0){add('narrator','叙事者','Boss倒了！');add('boss','Azathoth','公主在...北塔...（消散）');state.princess.found=true;state.princess.x=state.boss.x;state.princess.y=Math.max(0,state.boss.y-1);}
             else{const bd=15+Math.floor(Math.random()*21);state.player.hp-=bd;add('boss','Azathoth','愚蠢！受死！（'+bd+'伤害）');}
             return;
         }
         const m=state.monsters.find(m=>m.x===x&&m.y===y&&m.hp>0);
-        if(m){const d=15+Math.floor(Math.random()*16);m.hp-=d;add('hero','勇者','攻击'+m.name+'！'+d+'伤害！');if(m.hp<=0)add('narrator','叙事者',m.name+'死亡');else{const md=10+Math.floor(Math.random()*16);state.player.hp-=md;add('narrator','叙事者',m.name+'反击！-'+md+'HP');}}
+        if(m){
+            m.hp-=damage;
+            add('hero','勇者','攻击'+m.name+'！'+damage+'伤害！（等级'+state.player.level+'）');
+            if(m.hp<=0){
+                add('narrator','叙事者',m.name+'死亡');
+                const expGain = CFG.BASE_EXP + Math.floor(Math.random() * 15);
+                add('narrator','📈','获得 '+expGain+' 经验值！');
+                addExp(expGain);
+            }else{
+                const md=10+Math.floor(Math.random()*16);state.player.hp-=md;add('narrator','叙事者',m.name+'反击！-'+md+'HP');
+            }
+        }
         else add('narrator','叙事者','这里没有敌人...');
     }
     
@@ -453,11 +488,14 @@
         if(m){
             const monsterName = m.name || '怪物';
             add('narrator','遇到'+monsterName+'！');
-            const d=15+Math.floor(Math.random()*16);
-            m.hp-=d;
-            add('hero','勇者','攻击'+monsterName+'！-'+d);
+            const damage = getPlayerDamage();
+            m.hp-=damage;
+            add('hero','勇者','攻击'+monsterName+'！-'+damage);
             if(m.hp<=0){
                 add('narrator','叙事者',monsterName+'死亡');
+                const expGain = CFG.BASE_EXP + Math.floor(Math.random() * 15);
+                add('narrator','📈','获得 '+expGain+' 经验值！');
+                addExp(expGain);
             }else{
                 const md=10+Math.floor(Math.random()*16);
                 state.player.hp-=md;
@@ -465,7 +503,7 @@
             }
         }
         const t=state.treasures.find(t=>t.x===x&&t.y===y&&!t.o);
-        if(t){t.o=true;const hp=20+Math.floor(Math.random()*31),mp=10+Math.floor(Math.random()*21);state.player.hp=Math.min(CFG.HP,state.player.hp+hp);state.mage.mp=Math.min(CFG.MP,state.mage.mp+mp);add('narrator','发现宝箱！+'+hp+'HP +'+mp+'MP');}
+        if(t){t.o=true;const hp=20+Math.floor(Math.random()*31),mp=10+Math.floor(Math.random()*21);state.player.hp=Math.min(state.player.maxHp,state.player.hp+hp);state.mage.mp=Math.min(CFG.MP,state.mage.mp+mp);add('narrator','发现宝箱！+'+hp+'HP +'+mp+'MP');}
     }
     
     async function npcTurn(){
@@ -489,7 +527,17 @@
         const npc=npcs[Math.floor(Math.random()*npcs.length)];
         let prompt='',name='';
         if(npc==='boss'){prompt='你是黑暗龙王Azathoth，傲慢残忍。玩家说：「'+input+'」用角色语气简短回复1-2句。';name='Azathoth';}
-        else if(npc==='mage'){prompt='你是法师Merlin，忠诚友善。玩家说：「'+input+'」用角色语气回复，给出建议1-2句。';name='Merlin';}
+        else if(npc==='mage'){
+            const playerLevel = state.player.level;
+            const hintLevel = 5;
+            let levelHint = '';
+            if (playerLevel < hintLevel) {
+                levelHint = `（但要注意，你的等级还不够，目前是${playerLevel}级，至少需要${hintLevel}级才有把握打败它！）`;
+            } else {
+                levelHint = '（你已经很强大，有机会打败它！）';
+            }
+            prompt='你是法师Merlin，忠诚友善。玩家说：「'+input+'」用角色语气回复，给出建议1-2句。如果玩家问关于BOSS、打败、战斗相关问题，告诉他：黑暗龙王Azathoth非常强大，目前玩家等级'+playerLevel+'级，'+levelHint+'多打怪物升级，积累经验。';name='Merlin';
+        }
         else{prompt='你是公主Elara，温柔勇敢。玩家说：「'+input+'」用角色语气回复1-2句。';name='公主Elara';}
         try{const resp=await callAPI(state.apiUrl,state.apiKey,state.model,prompt,state.provider);add(npc==='boss'?'boss':npc==='mage'?'mage':'princess',name,resp);}
         catch(e){add('narrator','对话失败:'+e.message);}
