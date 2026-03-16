@@ -593,7 +593,6 @@
         state.loading=true;setBtn(true);
         try{
             state.turn++;state.steps--;
-            console.log('[playerAction] turn:', state.turn);
             if(act==='attack'){await doAttack();}
             else if(act==='magic'){await doMagic();}
             else if(act==='move'){await doMove(input);}
