@@ -890,6 +890,7 @@
     let isAIMode = false;
     
     function toggleAIMode() {
+        console.log('toggleAIMode clicked, isAIMode:', isAIMode);
         if (isAIMode) {
             stopAIMode();
         } else {
@@ -898,7 +899,11 @@
     }
     
     function startAIMode() {
-        if (state.loading || state.over) return;
+        console.log('startAIMode called');
+        if (state.loading || state.over) {
+            console.log('Cannot start: loading or over');
+            return;
+        }
         isAIMode = true;
         const btn = document.getElementById('ai-play-btn');
         btn.textContent = '⏹ 停止代玩';
@@ -910,6 +915,7 @@
         
         // 每 3 秒执行一次
         aiInterval = setInterval(() => {
+            console.log('AI interval tick, over:', state.over, 'isAIMode:', isAIMode);
             if (state.over || !isAIMode) {
                 stopAIMode();
                 return;
