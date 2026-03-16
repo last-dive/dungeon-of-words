@@ -1085,64 +1085,6 @@
             await playerAction('move');
         }
     }
-        else if (d.includes('magic')) {
-            add('narrator', '🦅 萨姆', '【魔法模式】使用魔法！');
-            await playerAction('magic');
-        }
-        else if (d.includes('talk')) {
-            // 提取对话内容
-            const talkMatch = decision.match(/talk\s+(.+)/i);
-            const talkContent = talkMatch ? talkMatch[1] : '你好，能给我一些建议吗？';
-            add('narrator', '🦅 萨姆', `【对话模式】与 ${talkContent} 对话`);
-            document.getElementById('player-input').value = talkContent;
-            await playerAction('talk');
-        }
-        else if (d.includes('move')) {
-            // 提取方向
-            const dirMatch = decision.match(/move\s+(.+)/i);
-            let direction = dirMatch ? dirMatch[1].trim() : '';
-            
-            // 如果没有指定方向或说"随机"，AI 自己判断
-            if (!direction || direction === '随机' || direction === 'random') {
-                // 智能判断方向
-                if (state.princess.found) {
-                    // 去找公主
-                    const dx = state.princess.x - state.player.x;
-                    const dy = state.princess.y - state.player.y;
-                    if (Math.abs(dx) > Math.abs(dy)) {
-                        direction = dx > 0 ? '右' : '左';
-                    } else {
-                        direction = dy > 0 ? '下' : '上';
-                    }
-                } else if (state.boss.hp > 0 && state.player.level >= 5) {
-                    // 去找 Boss（如果等级够）
-                    const dx = state.boss.x - state.player.x;
-                    const dy = state.boss.y - state.player.y;
-                    if (Math.abs(dx) > Math.abs(dy)) {
-                        direction = dx > 0 ? '右' : '左';
-                    } else {
-                        direction = dy > 0 ? '下' : '上';
-                    }
-                } else {
-                    // 随便逛逛，打怪升级
-                    const directions = ['上', '下', '左', '右'];
-                    direction = directions[Math.floor(Math.random() * 4)];
-                }
-            }
-            
-            add('narrator', '🦅 萨姆', `【移动模式】向${direction}移动...`);
-            document.getElementById('player-input').value = direction;
-            await playerAction('move');
-        }
-        else {
-            // 默认移动
-            const directions = ['上', '下', '左', '右'];
-            const direction = directions[Math.floor(Math.random() * 4)];
-            add('narrator', '🦅 萨姆', `【探索模式】向${direction}移动...`);
-            document.getElementById('player-input').value = direction;
-            await playerAction('move');
-        }
-    }
     </script>
 </body>
 </html>
