@@ -972,20 +972,15 @@
     function buildGameStatus() {
         const p = state.player;
         const b = state.boss;
-        const m = state.mage;
         
-        // 简化版 prompt
-        let status = `游戏状态: 勇者${p.hp}/${p.maxHp}HP,等级${p.level} | 位置(${p.x},${p.y}) | 步数${state.steps} | BOSS ${b.hp > 0 ? b.hp+'HP' : '已击败'}`;
-        
-        // 距离信息
-        if (b.hp > 0) status += ` | BOSS距离${dist(p,b)}`;
-        if (state.princess.found) status += ` | 公主距离${dist(p,state.princess)}`;
+        // 超简化版 prompt
+        let status = `你在玩地牢游戏。勇者位置(${p.x},${p.y})，HP${p.hp}/${p.maxHp}，等级${p.level}，还剩${state.steps}步。`;
         
         // 周围敌人
         const nearby = state.monsters.filter(m => dist(p,m) <= 1 && m.hp > 0);
-        if (nearby.length > 0) status += ` | 敌人:${nearby.map(n=>n.name).join(',')}`;
+        if (nearby.length > 0) status += `附近有${nearby.map(n=>n.name).join(',')}！`;
         
-        status += `。请回复"移动"或"攻击"或"技能火球"或"技能治疗"。只回复行动，不需要其他内容。`;
+        status += `请回复"攻击"或"移动"。只回一个词！`;
         
         return status;
         
