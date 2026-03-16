@@ -966,23 +966,20 @@
         const b = state.boss;
         const m = state.mage;
         
-        let status = `你是一个冒险游戏的 AI。请根据当前状态决定最佳行动。
+        // 简化版 prompt
+        let status = `游戏状态: 勇者${p.hp}/${p.maxHp}HP,等级${p.level} | 位置(${p.x},${p.y}) | 步数${state.steps} | BOSS ${b.hp > 0 ? b.hp+'HP' : '已击败'}`;
         
-当前状态：
-- 勇者: ${p.hp}/${p.maxHp} HP, 等级 ${p.level}, 经验 ${p.exp}/${getExpNeeded(p.level)}
-- 法师: ${m.mp}/${CFG.MP} MP  
-- Boss: ${b.hp > 0 ? b.hp + ' HP（还活着）' : '（已击败）'}
-- 公主: ${state.princess.found ? '已发现位置' : '（未找到）'}
-- 剩余步数: ${state.steps}
-- 当前位置: (${p.x}, ${p.y})
-
-可用技能：
-- fireball (火球术): 20MP, 40伤害
-- iceblast (冰冻术): 15MP, 25伤害  
-- heal (治疗术): 10MP, 恢复30HP
-- shield (护盾): 15MP, 获得20护盾
-
-`;
+        // 距离信息
+        if (b.hp > 0) status += ` | BOSS距离${dist(p,b)}`;
+        if (state.princess.found) status += ` | 公主距离${dist(p,state.princess)}`;
+        
+        // 周围敌人
+        const nearby = state.monsters.filter(m => dist(p,m) <= 1 && m.hp > 0);
+        if (nearby.length > 0) status += ` | 敌人:${nearby.map(n=>n.name).join(',')}`;
+        
+        status += `。请回复"移动"或"攻击"或"技能火球"或"技能治疗"。只回复行动，不需要其他内容。`;
+        
+        return status;
         
         // Boss 位置
         if (b.hp > 0) {
@@ -1045,45 +1042,42 @@
     }
     
     async function executeAIDecision(decision) {
-        const d = decision.toLowerCase();
+        const d = decision.toLowerCase().trim();
         
-        if (d.includes('attack')) {
-            add('narrator', '🦅 萨姆', '【战斗模式】攻击敌人！');
+        // 简单匹配：攻击/技能/移动/对话
+        if (d.includes('攻击') || d.includes('attack')) {
+            add('narrator', '🦅 萨姆', '攻击敌人！');
             await playerAction('attack');
         } 
-        else if (d.includes('skill')) {
-            // 提取技能名称
-            const skillMatch = decision.match(/skill\s+(\w+)/i);
-            let skillName = skillMatch ? skillMatch[1].toLowerCase() : '';
-            
-            // 智能选择技能
-            if (!skillName || skillName === '随机' || skillName === 'random') {
-                if (state.mage.mp >= 20) {
-                    // MP足够，用火球
-                    const {x, y} = state.player;
-                    if (at(x, y, state.boss) || monAt(x, y)) {
-                        skillName = 'fireball';
-                    } else {
-                        skillName = 'heal';
-                    }
-                } else if (state.mage.mp >= 15) {
-                    skillName = 'iceblast';
-                } else if (state.mage.mp >= 10) {
-                    skillName = 'heal';
-                } else {
-                    skillName = 'attack';
-                }
-            }
-            
-            // 验证技能名称
-            if (SKILLS[skillName]) {
-                add('narrator', '🦅 萨姆', `【技能模式】使用 ${SKILLS[skillName].name}！`);
-                await useSkill(skillName);
+        else if (d.includes('技能') || d.includes('skill') || d.includes('火球') || d.includes('治疗')) {
+            // 简单技能选择
+            if (d.includes('火球') || (d.includes('skill') && !d.includes('heal'))) {
+                await useSkill('fireball');
+            } else if (d.includes('治疗') || d.includes('heal')) {
+                await useSkill('heal');
+            } else if (state.mage.mp >= 20) {
+                await useSkill('fireball');
             } else {
-                add('narrator', '🦅 萨姆', '未知技能，回退到普通攻击');
-                await playerAction('attack');
+                await useSkill('heal');
             }
         }
+        else if (d.includes('移动') || d.includes('move') || d.includes('北') || d.includes('南') || d.includes('东') || d.includes('西') || d.includes('上') || d.includes('下') || d.includes('左') || d.includes('右')) {
+            // 简单移动 - 随机方向
+            const dirs = ['上', '下', '左', '右'];
+            const dir = dirs[Math.floor(Math.random() * dirs.length)];
+            add('narrator', '🦅 萨姆', `向${dir}移动...`);
+            document.getElementById('player-input').value = dir;
+            await playerAction('move');
+        }
+        else {
+            // 默认随机移动
+            const dirs = ['上', '下', '左', '右'];
+            const dir = dirs[Math.floor(Math.random() * dirs.length)];
+            add('narrator', '🦅 萨姆', `探索${dir}...`);
+            document.getElementById('player-input').value = dir;
+            await playerAction('move');
+        }
+    }
         else if (d.includes('magic')) {
             add('narrator', '🦅 萨姆', '【魔法模式】使用魔法！');
             await playerAction('magic');
