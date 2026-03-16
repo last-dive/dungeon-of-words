@@ -590,11 +590,13 @@
     }
     
     async function playerAction(act){
+        console.log('[playerAction] called with act:', act, 'input:', document.getElementById('player-input').value);
         if(state.loading||state.over)return;
         const input=document.getElementById('player-input').value.trim();
         state.loading=true;setBtn(true);
         try{
             state.turn++;state.steps--;
+            console.log('[playerAction] turn:', state.turn, 'steps:', state.steps);
             if(act==='attack'){await doAttack();}
             else if(act==='magic'){await doMagic();}
             else if(act==='move'){await doMove(input);}
