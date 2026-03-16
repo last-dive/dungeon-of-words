@@ -1028,9 +1028,24 @@
     }
     
     async function getAIDecision(status) {
+        console.log('[getAIDecision] 发送prompt给AI:', status);
         const resp = await callAPI(state.apiUrl, state.apiKey, state.model, status, state.provider);
+        console.log('[getAIDecision] AI回复:', resp);
         
-        // 解析决策
+        // 解析决策 - 尝试多种格式
+        const trimmed = resp.toLowerCase().trim();
+        
+        // 简单关键词匹配
+        if (trimmed.includes('攻击') || trimmed.includes('attack')) return 'attack';
+        if (trimmed.includes('火球')) return 'skill-fireball';
+        if (trimmed.includes('治疗') || trimmed.includes('heal')) return 'skill-heal';
+        if (trimmed.includes('移动') || trimmed.includes('move') || 
+            trimmed.includes('北') || trimmed.includes('南') || 
+            trimmed.includes('东') || trimmed.includes('西') ||
+            trimmed.includes('上') || trimmed.includes('下') ||
+            trimmed.includes('左') || trimmed.includes('右')) return 'move';
+        
+        // 尝试 action: 格式
         const lines = resp.split('\n');
         for (const line of lines) {
             if (line.startsWith('action:')) {
@@ -1038,29 +1053,24 @@
             }
         }
         
-        // 如果没有解析到，尝试从整个回复中提取
-        const match = resp.match(/action:\s*(\w+)/);
-        if (match) {
-            return match[1].trim();
-        }
-        
         // 默认随机移动
-        return 'move 随机';
+        return 'move';
     }
     
     async function executeAIDecision(decision) {
+        console.log('[executeAIDecision] decision:', decision);
         const d = decision.toLowerCase().trim();
         
-        // 简单匹配：攻击/技能/移动/对话
-        if (d.includes('攻击') || d.includes('attack')) {
+        // 匹配攻击
+        if (d.includes('attack') || d.includes('攻击')) {
             add('narrator', '🦅 萨姆', '攻击敌人！');
             await playerAction('attack');
         } 
-        else if (d.includes('技能') || d.includes('skill') || d.includes('火球') || d.includes('治疗')) {
-            // 简单技能选择
-            if (d.includes('火球') || (d.includes('skill') && !d.includes('heal'))) {
+        // 匹配技能
+        else if (d.includes('skill') || d.includes('技能') || d.includes('火球') || d.includes('治疗')) {
+            if (d.includes('fireball') || d.includes('火球')) {
                 await useSkill('fireball');
-            } else if (d.includes('治疗') || d.includes('heal')) {
+            } else if (d.includes('heal') || d.includes('治疗')) {
                 await useSkill('heal');
             } else if (state.mage.mp >= 20) {
                 await useSkill('fireball');
@@ -1068,16 +1078,16 @@
                 await useSkill('heal');
             }
         }
-        else if (d.includes('移动') || d.includes('move') || d.includes('北') || d.includes('南') || d.includes('东') || d.includes('西') || d.includes('上') || d.includes('下') || d.includes('左') || d.includes('右')) {
-            // 简单移动 - 随机方向
+        // 匹配移动
+        else if (d.includes('move') || d.includes('移动')) {
             const dirs = ['上', '下', '左', '右'];
             const dir = dirs[Math.floor(Math.random() * dirs.length)];
             add('narrator', '🦅 萨姆', `向${dir}移动...`);
             document.getElementById('player-input').value = dir;
             await playerAction('move');
         }
+        // 默认移动
         else {
-            // 默认随机移动
             const dirs = ['上', '下', '左', '右'];
             const dir = dirs[Math.floor(Math.random() * dirs.length)];
             add('narrator', '🦅 萨姆', `探索${dir}...`);
