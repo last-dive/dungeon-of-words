@@ -726,6 +726,8 @@
     
     function end(win){
         state.over=true;
+        // 游戏结束时停止 AI 模式
+        stopAIMode();
         const m=document.getElementById('modal'),c=document.getElementById('modal-content');
         c.className='modal-content '+(win?'victory':'defeat');
         document.getElementById('modal-title').textContent=win?'🎉胜利！':'💀失败';
