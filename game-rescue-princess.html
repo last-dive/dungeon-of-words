@@ -31,6 +31,11 @@
         .test-result.success { background: rgba(0,255,0,0.15); border: 1px solid rgba(0,255,0,0.3); color: #90EE90; }
         .test-result.error { background: rgba(255,0,0,0.15); border: 1px solid rgba(255,0,0,0.3); color: #FFB6C1; }
         
+        .story-box { background: rgba(0,0,0,0.3); border-radius: 10px; padding: 15px; margin-bottom: 20px; border: 1px solid rgba(255,215,0,0.3); }
+        .story-box h3 { color: #ffd700; font-size: 14px; margin-bottom: 8px; }
+        .story-box p { font-size: 12px; color: #ccc; margin-bottom: 6px; line-height: 1.4; }
+        .story-box .hint { color: #888; font-size: 11px; }
+        
         #game-screen { display: none; }
         
         /* 左右布局 - 地图为主 */
@@ -63,6 +68,11 @@
         .hero .value { color: #ffd700; }
         .mage .value { color: #9370db; }
         .boss .value { color: #ff4444; }
+        
+        .task-panel { background: rgba(0,0,0,0.3); border-radius: 5px; padding: 6px; margin-top: 5px; }
+        .task-title { font-size: 9px; color: #ffd700; margin-bottom: 4px; font-weight: bold; }
+        .task-item { font-size: 10px; color: #888; margin-bottom: 3px; }
+        .task-item.completed { color: #90EE90; text-decoration: line-through; }
         
         .dialogue-container { background: rgba(0,0,0,0.3); border-radius: 6px; padding: 6px; flex: 1; min-height: 100px; overflow-y: auto; font-size: 11px; }
         .dialogue { margin-bottom: 5px; padding: 5px; border-radius: 3px; animation: fadeIn 0.3s; font-size: 11px; }
@@ -109,6 +119,13 @@
         <div class="login-box">
             <h1>🏰 Dungeon of Words</h1>
             <p class="subtitle">文字地牢 - AI NPC 文字冒险</p>
+            
+            <div class="story-box">
+                <h3>📖 故事背景</h3>
+                <p>公主Elara被黑暗龙王Azathoth囚禁在遥远的北方塔中。</p>
+                <p>作为被选中的勇者，你将踏上拯救公主的旅程。</p>
+                <p class="hint">💡 提示：击败怪物获得经验升级收集宝箱恢复状态</p>
+            </div>
             
             <div class="form-group">
                 <label>API 提供商</label>
@@ -179,6 +196,11 @@
                         <div class="status-card boss"><h3>👹 Boss</h3><div class="value" id="boss-hp">300/300</div></div>
                         <div class="status-card"><h3>👸 公主</h3><div class="value" id="princess-status">被囚禁</div></div>
                     </div>
+                    <div class="task-panel">
+                        <div class="task-title">📋 任务目标</div>
+                        <div class="task-item" id="task-boss">☐ 击败黑暗龙王Azathoth</div>
+                        <div class="task-item" id="task-princess">☐ 找到并拯救公主Elara</div>
+                    </div>
                     <div class="dialogue-container" id="dialogue"></div>
                     <div class="input-container">
                         <textarea id="player-input" placeholder="输入你的行动或对话... (如: 向北走, 攻击, 和法师对话)"></textarea>
@@ -235,7 +257,7 @@
         {name: '食人魔', icon: 'orc'},
         {name: '牛头怪', icon: 'minotaur'}
     ];
-    let state = { provider: 'openai', apiUrl: '', apiKey: '', model: '', turn: 0, steps: CFG.STEPS, player: {x:0,y:0,hp:CFG.HP,level:1,exp:0,maxHp:CFG.HP}, mage: {mp:CFG.MP}, boss: {x:4,y:4,hp:CFG.BOSS}, princess: {x:0,y:0,found:false}, monsters: [], treasures: [], loading: false, over: false };
+    let state = { provider: 'openai', apiUrl: '', apiKey: '', model: '', turn: 0, steps: CFG.STEPS, player: {x:0,y:0,hp:CFG.HP,level:1,exp:0,maxHp:CFG.HP}, mage: {mp:CFG.MP}, boss: {x:4,y:4,hp:CFG.BOSS}, princess: {x:0,y:0,found:false}, monsters: [], treasures: [], loading: false, over: false, tasks: {findPrincess:false,defeatBoss:false} };
 
     // 升级系统
     function getExpNeeded(level) {
@@ -414,8 +436,13 @@
         initMap();
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('game-screen').style.display = 'block';
-        add('narrator', '叙事者', '很久以前，公主被黑暗龙王囚禁。作为勇者，你踏上旅程...');
-        add('mage', '法师 Merlin', '勇者，我会陪你冒险，提供魔法支援！');
+        
+        // 开场叙事
+        add('narrator', '📜', '【序章】黑暗纪元2024年...');
+        setTimeout(() => add('narrator', '📜', '黑暗龙王Azathoth率军攻陷王国，公主Elara被囚禁在北方高塔之中。'), 800);
+        setTimeout(() => add('narrator', '📜', '作为被星痕选中的勇者，你踏上了拯救公主的旅程...'), 1600);
+        setTimeout(() => add('mage', '法师 Merlin', '勇者，我是 Merlin，将用魔法支援你！先击败怪物升级，增强实力后再挑战Boss！'), 2400);
+        
         updateUI();
     }
     
@@ -424,6 +451,13 @@
         state.player = {x:0,y:0,hp:CFG.HP,level:1,exp:0,maxHp:CFG.HP};
         state.mage = {mp:CFG.MP};
         state.monsters = []; state.treasures = [];
+        // 重置任务状态
+        state.tasks = {findPrincess:false, defeatBoss:false};
+        // 更新任务UI显示
+        const taskBoss = document.getElementById('task-boss');
+        const taskPrincess = document.getElementById('task-princess');
+        if (taskBoss) { taskBoss.classList.remove('completed'); taskBoss.textContent = '☐ 击败黑暗龙王Azathoth'; }
+        if (taskPrincess) { taskPrincess.classList.remove('completed'); taskPrincess.textContent = '☐ 找到并拯救公主Elara'; }
         // Boss 在地图右下角区域
         do { state.boss = {x:7+Math.floor(Math.random()*3),y:7+Math.floor(Math.random()*3),hp:CFG.BOSS}; } while(dist(state.player,state.boss)<5);
         // 公主在 Boss 附近
@@ -507,6 +541,18 @@
         document.getElementById('mage-mp').textContent=state.mage.mp+'/'+CFG.MP;
         document.getElementById('boss-hp').textContent=state.boss.hp+'/'+CFG.BOSS;
         document.getElementById('princess-status').textContent=state.princess.found?'已发现！':'被囚禁';
+        
+        // 更新任务状态
+        const taskBoss = document.getElementById('task-boss');
+        const taskPrincess = document.getElementById('task-princess');
+        if (state.tasks.defeatBoss) {
+            taskBoss.classList.add('completed');
+            taskBoss.textContent = '☑ 已击败黑暗龙王Azathoth';
+        }
+        if (state.tasks.findPrincess) {
+            taskPrincess.classList.add('completed');
+            taskPrincess.textContent = '☑ 已找到并拯救公主Elara';
+        }
     }
     
     function add(type,speaker,text){
@@ -545,7 +591,7 @@
         if(at(x,y,state.boss)&&state.boss.hp>0){
             state.boss.hp-=damage;
             add('hero','勇者','攻击Boss！造成'+damage+'伤害！（等级'+state.player.level+'）');
-            if(state.boss.hp<=0){add('narrator','叙事者','Boss倒了！');add('boss','Azathoth','公主在...北塔...（消散）');state.princess.found=true;state.princess.x=state.boss.x;state.princess.y=Math.max(0,state.boss.y-1);}
+            if(state.boss.hp<=0){add('narrator','叙事者','Boss倒了！');state.tasks.defeatBoss=true;add('boss','Azathoth','公主在...北塔...（消散）');state.princess.found=true;state.princess.x=state.boss.x;state.princess.y=Math.max(0,state.boss.y-1);}
             else{const bd=15+Math.floor(Math.random()*21);state.player.hp-=bd;add('boss','Azathoth','愚蠢！受死！（'+bd+'伤害）');}
             return;
         }
@@ -568,7 +614,7 @@
     async function doMagic(){
         if(state.mage.mp<10){add('mage','Merlin','魔力不足...');return;}
         const {x,y}=state.player;
-        if(at(x,y,state.boss)&&state.boss.hp>0){const d=20+Math.floor(Math.random()*21);state.boss.hp-=d;state.mage.mp-=10;add('mage','Merlin','火焰魔法！-'+d+'伤害！');if(state.boss.hp<=0){add('narrator','Boss化为灰烬');add('boss','Azathoth','不...可...能...');state.princess.found=true;state.princess.x=state.boss.x;state.princess.y=Math.max(0,state.boss.y-1);}}
+        if(at(x,y,state.boss)&&state.boss.hp>0){const d=20+Math.floor(Math.random()*21);state.boss.hp-=d;state.mage.mp-=10;add('mage','Merlin','火焰魔法！-'+d+'伤害！');if(state.boss.hp<=0){add('narrator','Boss化为灰烬');state.tasks.defeatBoss=true;add('boss','Azathoth','不...可...能...');state.princess.found=true;state.princess.x=state.boss.x;state.princess.y=Math.max(0,state.boss.y-1);}}
         else if(state.player.hp<CFG.HP){const h=20+Math.floor(Math.random()*16);state.player.hp=Math.min(CFG.HP,state.player.hp+h);state.mage.mp-=10;add('mage','Merlin','治疗之光！+'+h+'HP！');}
         else add('mage','Merlin','无需治疗...');
     }
@@ -613,6 +659,28 @@
         if(state.boss.hp>0&&dist(state.player,state.boss)===0){
             const d=15+Math.floor(Math.random()*21);state.player.hp-=d;
             add('boss','Azathoth','接受黑暗吧！-'+d+'HP');
+        }
+        
+        // 任务提示系统
+        if (state.turn % 5 === 0 && !state.tasks.defeatBoss) {
+            const distToBoss = dist(state.player, state.boss);
+            if (distToBoss > 3) {
+                add('mage', 'Merlin', `Boss在地图深处，距离较远。建议先击败周围怪物升级，积累经验！`);
+            } else if (distToBoss <= 3 && state.player.level < 5) {
+                add('mage', 'Merlin', `Boss就在附近！但你等级还不够，至少5级再去挑战。继续升级吧！`);
+            } else if (distToBoss <= 2) {
+                add('mage', 'Merlin', `小心！黑暗龙王Azathoth就在隔壁！准备好就进攻吧！`);
+            }
+        }
+        
+        // 找到公主后的提示
+        if (state.princess.found && !state.tasks.findPrincess) {
+            const distToPrincess = dist(state.player, state.princess);
+            if (distToPrincess === 0) {
+                add('mage', 'Merlin', `公主Elara就在这个格子！使用「对话」按钮营救她！`);
+            } else if (distToPrincess <= 2) {
+                add('mage', 'Merlin', `公主Elara就在附近！向北塔方向移动，找到她！`);
+            }
         }
     }
     
