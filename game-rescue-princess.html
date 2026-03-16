@@ -74,6 +74,12 @@
         .task-item { font-size: 10px; color: #888; margin-bottom: 3px; }
         .task-item.completed { color: #90EE90; text-decoration: line-through; }
         
+        .ai-control-panel { background: rgba(0,0,0,0.3); border-radius: 5px; padding: 8px; margin-top: 5px; text-align: center; }
+        .btn-ai-play { width: 100%; padding: 10px; background: linear-gradient(135deg, #ffd700, #ff8c00); color: #1a1a2e; border: none; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; }
+        .btn-ai-play:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(255,215,0,0.4); }
+        .btn-ai-play.playing { background: linear-gradient(135deg, #ff4444, #cc0000); color: white; }
+        .ai-status { font-size: 10px; color: #888; margin-top: 5px; }
+        
         .dialogue-container { background: rgba(0,0,0,0.3); border-radius: 6px; padding: 6px; flex: 1; min-height: 100px; overflow-y: auto; font-size: 11px; }
         .dialogue { margin-bottom: 5px; padding: 5px; border-radius: 3px; animation: fadeIn 0.3s; font-size: 11px; }
         .dialogue .speaker { font-size: 9px; }
@@ -200,6 +206,10 @@
                         <div class="task-title">📋 任务目标</div>
                         <div class="task-item" id="task-boss">☐ 击败黑暗龙王Azathoth</div>
                         <div class="task-item" id="task-princess">☐ 找到并拯救公主Elara</div>
+                    </div>
+                    <div class="ai-control-panel" id="ai-control">
+                        <button class="btn-ai-play" id="ai-play-btn" onclick="toggleAIMode()">🦅 让我来玩</button>
+                        <div class="ai-status" id="ai-status">等待激活...</div>
                     </div>
                     <div class="dialogue-container" id="dialogue"></div>
                     <div class="input-container">
@@ -728,6 +738,224 @@
         document.getElementById('game-screen').style.display='none';
         document.getElementById('login-screen').style.display='flex';
         document.getElementById('dialogue').innerHTML='';
+        // 停止 AI 模式
+        stopAIMode();
+    }
+    
+    // ==================== AI 代玩模式 ====================
+    let aiInterval = null;
+    let isAIMode = false;
+    
+    function toggleAIMode() {
+        if (isAIMode) {
+            stopAIMode();
+        } else {
+            startAIMode();
+        }
+    }
+    
+    function startAIMode() {
+        if (state.loading || state.over) return;
+        isAIMode = true;
+        const btn = document.getElementById('ai-play-btn');
+        btn.textContent = '⏹ 停止代玩';
+        btn.classList.add('playing');
+        document.getElementById('ai-status').textContent = '🦅 思考中...';
+        
+        // 立即执行一步
+        aiTurn();
+        
+        // 每 3 秒执行一次
+        aiInterval = setInterval(() => {
+            if (state.over || !isAIMode) {
+                stopAIMode();
+                return;
+            }
+            aiTurn();
+        }, 3000);
+    }
+    
+    function stopAIMode() {
+        isAIMode = false;
+        if (aiInterval) {
+            clearInterval(aiInterval);
+            aiInterval = null;
+        }
+        const btn = document.getElementById('ai-play-btn');
+        btn.textContent = '🦅 让我来玩';
+        btn.classList.remove('playing');
+        document.getElementById('ai-status').textContent = '等待激活...';
+    }
+    
+    async function aiTurn() {
+        if (state.loading || state.over || !isAIMode) return;
+        
+        state.loading = true;
+        document.getElementById('ai-status').textContent = '🦅 决策中...';
+        
+        try {
+            // 构建游戏状态描述
+            const status = buildGameStatus();
+            
+            // 让 AI 决定下一步
+            const decision = await getAIDecision(status);
+            
+            // 解析决策并执行
+            await executeAIDecision(decision);
+            
+        } catch (e) {
+            add('narrator', '🦅 萨姆', '抱歉，我卡住了: ' + e.message);
+            // 出错时尝试随机移动
+            const directions = ['上', '下', '左', '右'];
+            const randDir = directions[Math.floor(Math.random() * 4)];
+            document.getElementById('player-input').value = randDir;
+            await playerAction('move');
+        }
+        
+        state.loading = false;
+        if (isAIMode && !state.over) {
+            document.getElementById('ai-status').textContent = '🦅 等待下一回合...';
+        }
+    }
+    
+    function buildGameStatus() {
+        const p = state.player;
+        const b = state.boss;
+        const m = state.mage;
+        
+        let status = `你是一个冒险游戏的 AI。请根据当前状态决定最佳行动。
+        
+当前状态：
+- 勇者: ${p.hp}/${p.maxHp} HP, 等级 ${p.level}, 经验 ${p.exp}/${getExpNeeded(p.level)}
+- 法师: ${m.mp}/${CFG.MP} MP  
+- Boss: ${b.hp > 0 ? b.hp + ' HP（还活着）' : '（已击败）'}
+- 公主: ${state.princess.found ? '已发现位置' : '（未找到）'}
+- 剩余步数: ${state.steps}
+- 当前位置: (${p.x}, ${p.y})
+
+`;
+        
+        // Boss 位置
+        if (b.hp > 0) {
+            const distToBoss = dist(p, b);
+            status += `- Boss 距离: ${distToBoss} 格\n`;
+        }
+        
+        // 公主位置
+        if (state.princess.found) {
+            const distToPrincess = dist(p, state.princess);
+            status += `- 公主距离: ${distToPrincess} 格\n`;
+        }
+        
+        // 周围环境
+        const nearbyMonsters = state.monsters.filter(m => dist(p, m) <= 1 && m.hp > 0);
+        if (nearbyMonsters.length > 0) {
+            status += `- 附近敌人: ${nearbyMonsters.map(m => m.name).join(', ')}\n`;
+        }
+        
+        // 最近的宝箱
+        const nearbyTreasures = state.treasures.filter(t => !t.o && dist(p, t) <= 2);
+        if (nearbyTreasures.length > 0) {
+            status += `- 附近宝箱: ${nearbyTreasures.length} 个\n`;
+        }
+        
+        status += `
+请决定下一步行动，格式：action: 行动类型
+- 如果附近有敌人: action:attack
+- 如果需要移动: action:move 方向(如: 北/南/东/西)
+- 如果需要魔法: action:magic  
+- 如果想对话: action:talk 对话内容
+
+只输出一个 action:xxx 格式，不要输出其他内容。`;
+        
+        return status;
+    }
+    
+    async function getAIDecision(status) {
+        const resp = await callAPI(state.apiUrl, state.apiKey, state.model, status, state.provider);
+        
+        // 解析决策
+        const lines = resp.split('\n');
+        for (const line of lines) {
+            if (line.startsWith('action:')) {
+                return line.substring(7).trim();
+            }
+        }
+        
+        // 如果没有解析到，尝试从整个回复中提取
+        const match = resp.match(/action:\s*(\w+)/);
+        if (match) {
+            return match[1].trim();
+        }
+        
+        // 默认随机移动
+        return 'move 随机';
+    }
+    
+    async function executeAIDecision(decision) {
+        const d = decision.toLowerCase();
+        
+        if (d.includes('attack')) {
+            add('narrator', '🦅 萨姆', '【战斗模式】攻击敌人！');
+            await playerAction('attack');
+        } 
+        else if (d.includes('magic')) {
+            add('narrator', '🦅 萨姆', '【魔法模式】使用魔法！');
+            await playerAction('magic');
+        }
+        else if (d.includes('talk')) {
+            // 提取对话内容
+            const talkMatch = decision.match(/talk\s+(.+)/i);
+            const talkContent = talkMatch ? talkMatch[1] : '你好，能给我一些建议吗？';
+            add('narrator', '🦅 萨姆', `【对话模式】与 ${talkContent} 对话`);
+            document.getElementById('player-input').value = talkContent;
+            await playerAction('talk');
+        }
+        else if (d.includes('move')) {
+            // 提取方向
+            const dirMatch = decision.match(/move\s+(.+)/i);
+            let direction = dirMatch ? dirMatch[1].trim() : '';
+            
+            // 如果没有指定方向或说"随机"，AI 自己判断
+            if (!direction || direction === '随机' || direction === 'random') {
+                // 智能判断方向
+                if (state.princess.found) {
+                    // 去找公主
+                    const dx = state.princess.x - state.player.x;
+                    const dy = state.princess.y - state.player.y;
+                    if (Math.abs(dx) > Math.abs(dy)) {
+                        direction = dx > 0 ? '右' : '左';
+                    } else {
+                        direction = dy > 0 ? '下' : '上';
+                    }
+                } else if (state.boss.hp > 0 && state.player.level >= 5) {
+                    // 去找 Boss（如果等级够）
+                    const dx = state.boss.x - state.player.x;
+                    const dy = state.boss.y - state.player.y;
+                    if (Math.abs(dx) > Math.abs(dy)) {
+                        direction = dx > 0 ? '右' : '左';
+                    } else {
+                        direction = dy > 0 ? '下' : '上';
+                    }
+                } else {
+                    // 随便逛逛，打怪升级
+                    const directions = ['上', '下', '左', '右'];
+                    direction = directions[Math.floor(Math.random() * 4)];
+                }
+            }
+            
+            add('narrator', '🦅 萨姆', `【移动模式】向${direction}移动...`);
+            document.getElementById('player-input').value = direction;
+            await playerAction('move');
+        }
+        else {
+            // 默认移动
+            const directions = ['上', '下', '左', '右'];
+            const direction = directions[Math.floor(Math.random() * 4)];
+            add('narrator', '🦅 萨姆', `【探索模式】向${direction}移动...`);
+            document.getElementById('player-input').value = direction;
+            await playerAction('move');
+        }
     }
     </script>
 </body>
