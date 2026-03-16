@@ -536,7 +536,8 @@
     function updateUI(){
         const map = document.getElementById('map');
         
-        // 根据容器宽高中较小的那个来计算格子大小，确保填满
+        // 清空地图
+        map.innerHTML = '';
         const container = document.querySelector('.map-container');
         const containerHeight = container ? container.clientHeight - 20 : 400;
         const containerWidth = container ? container.clientWidth - 20 : 600;
